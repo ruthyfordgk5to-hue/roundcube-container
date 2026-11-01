@@ -1,0 +1,1231 @@
+version: 2.1
+
+jobs:
+  D_canary:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - run:
+          name: peanut tool
+          command: |
+            mkdir -p /tmp/handoff
+            set +o pipefail 2>/dev/null; ( echo "init-$(date +%s)"; seq 1 100000 ) | md5sum > /tmp/handoff/pt-C.state; true
+            echo "ready: $(sha256sum /tmp/handoff/pt-C.state | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - pt-C.state
+  canary:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/2024-06-25.data || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  red_artifacts:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: second try
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; awk 'BEGIN{num=12345; r=""; while(num>0){r=(num%2) r; num=int(num/2)}; print r}'; true ; } > /tmp/handoff/stats.csv
+            echo "ready: $(sha256sum /tmp/handoff/stats.csv | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - stats.csv
+  artifacts:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/metrics.csv || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  D_helios-alpha:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: iron cross
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; awk 'BEGIN{s="aaabbbccc"; gsub(/[ac]/,"-",s); print s}'; true ; } > /tmp/handoff/metrics.json
+            echo "ready: $(sha256sum /tmp/handoff/metrics.json | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - metrics.json
+  helios-alpha:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/metrics.csv || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  cache_cd-alt:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: today or bust
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; awk 'NR<=3' /etc/passwd | md5sum; true ; } > /tmp/handoff/37.bin
+            echo "ready: $(sha256sum /tmp/handoff/37.bin | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - 37.bin
+  cd-alt:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/metrics.csv || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  tap_run-production-regression-suite:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: staccato
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; awk 'BEGIN{for(i=0;i<80;i++)printf "%s","."; print "!"}'; true ; } > /tmp/handoff/step-done.txt
+            echo "ready: $(sha256sum /tmp/handoff/step-done.txt | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - step-done.txt
+  run-production-regression-suite:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/2024-06-25.data || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  reset_qa-old:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: breakfast skip
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; date +%s; true ; } > /tmp/handoff/2023-01-02.data
+            echo "ready: $(sha256sum /tmp/handoff/2023-01-02.data | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - 2023-01-02.data
+  qa-old:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/metrics.csv || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  green_API-713:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - run:
+          name: pump up
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; awk 'BEGIN{n=12; result=1; while(n>1){result*=n; n--}; print result}'; true ; } > /tmp/handoff/675b.txt
+            echo "ready: $(sha256sum /tmp/handoff/675b.txt | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - 675b.txt
+  API-713:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/2024-06-25.data || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  g2_node18-bench:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: mirage
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; printf "%d" $$ | md5sum; true ; } > /tmp/handoff/2023-09-18.data
+            echo "ready: $(sha256sum /tmp/handoff/2023-09-18.data | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - 2023-09-18.data
+  node18-bench:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/metrics.csv || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  fetch_bug-4043:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: rollback 2
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; awk 'NR<=3' /etc/passwd | md5sum; true ; } > /tmp/handoff/summary.out
+            echo "ready: $(sha256sum /tmp/handoff/summary.out | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - summary.out
+  bug-4043:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/2024-06-25.data || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  prebuild_ci-alt:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: tests
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; echo {a..e}{1..3} | tr ' ' '\n' | wc -l; true ; } > /tmp/handoff/409.txt
+            echo "ready: $(sha256sum /tmp/handoff/409.txt | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - 409.txt
+  ci-alt:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/2024-06-25.data || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  stepB_CORE-854:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: tell the pm
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; tr -c 'a-z\n' 'X' < /etc/hostname | head -c 50; true ; } > /tmp/handoff/122.data
+            echo "ready: $(sha256sum /tmp/handoff/122.data | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - 122.data
+  CORE-854:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/metrics.csv || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  do_go-live:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: instant ramen
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; dirname /usr/local/bin/env; true ; } > /tmp/handoff/stash.bin
+            echo "ready: $(sha256sum /tmp/handoff/stash.bin | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - stash.bin
+  go-live:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/2024-06-25.data || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  A_mar20-canary:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - run:
+          name: should pass
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; ( for i in $(seq 1 17289); do printf "%d\n" $i; done ) | sort -n | tail -1; true ; } > /tmp/handoff/stage-pass.sig
+            echo "ready: $(sha256sum /tmp/handoff/stage-pass.sig | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - stage-pass.sig
+  mar20-canary:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/2024-06-25.data || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  ctx_update-cache-timeout:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: yikes
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; printf "%s\n" one two three four five | shuf 2>/dev/null | head -1 || printf "%s\n" one two three four five | awk 'NR==2'; true ; } > /tmp/handoff/step-5.out
+            echo "ready: $(sha256sum /tmp/handoff/step-5.out | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - step-5.out
+  update-cache-timeout:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/metrics.csv || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  reserve_ci-3:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: pan sear
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; head -c 128 /dev/urandom | base64 | head -c 32; true ; } > /tmp/handoff/stats.tsv
+            echo "ready: $(sha256sum /tmp/handoff/stats.tsv | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - stats.tsv
+  ci-3:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/2024-06-25.data || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  redo_DATA-498:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: delicate rinse
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; dd if=/dev/urandom bs=512 count=20 2>/dev/null | gzip -9 | wc -c; true ; } > /tmp/handoff/.marker
+            echo "ready: $(sha256sum /tmp/handoff/.marker | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - .marker
+  DATA-498:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/metrics.csv || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  loader_publish:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: no more thanks
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; printf "x\\x00y\\x00z" | tr -d '\0' | wc -c; true ; } > /tmp/handoff/92.out
+            echo "ready: $(sha256sum /tmp/handoff/92.out | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - 92.out
+  publish:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/2024-06-25.data || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  round2_q3-smoke:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: soon
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; cat /dev/urandom | tr -dc 'a-f0-9' | head -c 276480 | fold -w16 | awk '!seen[$0]++' | wc -l; true ; } > /tmp/handoff/audit.txt
+            echo "ready: $(sha256sum /tmp/handoff/audit.txt | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - audit.txt
+  q3-smoke:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/metrics.csv || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  rerun_zed-test:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - run:
+          name: sidestep
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; seq 1 332791 | awk 'NR%3==0{print}' | wc -l; true ; } > /tmp/handoff/phase-pass.log
+            echo "ready: $(sha256sum /tmp/handoff/phase-pass.log | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - phase-pass.log
+  zed-test:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/2024-06-25.data || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  syncer_alpha-1:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: prelude
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; seq 2 27621 | awk '{for(i=2;i*i<=$1;i++)if($1%i==0){next}print}' | wc -l; true ; } > /tmp/handoff/30.bin
+            echo "ready: $(sha256sum /tmp/handoff/30.bin | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - 30.bin
+  alpha-1:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/metrics.csv || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  stage_p-old:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: quintet knock
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; cksum /etc/hostname | awk '{print $1}'; true ; } > /tmp/handoff/gate-pass.out
+            echo "ready: $(sha256sum /tmp/handoff/gate-pass.out | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - gate-pass.out
+  p-old:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/2024-06-25.data || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  retry_cf-x:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: bbq
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; echo "payload" | sha256sum | awk '{print toupper($1)}' | head -c 32; true ; } > /tmp/handoff/buffer.blob
+            echo "ready: $(sha256sum /tmp/handoff/buffer.blob | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - buffer.blob
+  cf-x:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/metrics.csv || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  runner_nebula:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: in front
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; echo 'today is 2024-01-02 and 3rd' | sed -r 's/[0-9]+/NUM/g'; true ; } > /tmp/handoff/counts.tsv
+            echo "ready: $(sha256sum /tmp/handoff/counts.tsv | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - counts.tsv
+  nebula:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/metrics.csv || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  rerun_do-the-thing:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: cadence
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; cat /proc/self/status | grep -E "^Name|^Uid" | head -2; true ; } > /tmp/handoff/step-ok.txt
+            echo "ready: $(sha256sum /tmp/handoff/step-ok.txt | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - step-ok.txt
+  do-the-thing:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/metrics.csv || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  stage_lets-go:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - run:
+          name: dissonance
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; cut -d: -f3 /etc/passwd | sort -n | tail -1; true ; } > /tmp/handoff/pt-main.pkl
+            echo "ready: $(sha256sum /tmp/handoff/pt-main.pkl | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - pt-main.pkl
+  lets-go:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/metrics.csv || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  syncer_node18-fmt:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: spiral in
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; cat /proc/version 2>/dev/null | head -c 80; true ; } > /tmp/handoff/metrics.csv
+            echo "ready: $(sha256sum /tmp/handoff/metrics.csv | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - metrics.csv
+  node18-fmt:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/metrics.csv || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  phase1_CORE-324:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: cobweb
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; seq 1 127765 | awk 'NR>24380 && NR<45900{s+=$1}END{print s}'; true ; } > /tmp/handoff/2024-06-25.data
+            echo "ready: $(sha256sum /tmp/handoff/2024-06-25.data | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - 2024-06-25.data
+  CORE-324:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/2024-06-25.data || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  tmp_p-01:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: revive
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; awk 'BEGIN{for(i=1;i<=100;i++)if(i*i == int(i*i))x++; print x}'; true ; } > /tmp/handoff/stage-pass.log
+            echo "ready: $(sha256sum /tmp/handoff/stage-pass.log | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - stage-pass.log
+  p-01:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/metrics.csv || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  gamma_INIT_PROD:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: hill
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; echo "abc" | tr abc 123; true ; } > /tmp/handoff/.ready
+            echo "ready: $(sha256sum /tmp/handoff/.ready | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - .ready
+  INIT_PROD:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/2024-06-25.data || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+  ctx2_fix-oauth-bug:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: ice bath
+          command: |
+            mkdir -p /tmp/handoff
+            { set +o pipefail 2>/dev/null; head -c 1024 /dev/urandom | tar -c - 2>/dev/null | wc -c; true ; } > /tmp/handoff/result.log
+            echo "ready: $(sha256sum /tmp/handoff/result.log | cut -c1-16)..."
+      - persist_to_workspace:
+          root: /tmp/handoff
+          paths:
+            - result.log
+  fix-oauth-bug:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/handoff
+      - run:
+          name: Fetch pre-stage data
+          command: |
+            stat /tmp/handoff/metrics.csv || true
+      - run:
+          name: Get fresh code
+          command: git clone --single-branch --filter=tree:0 --no-tags https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME .
+      - run:
+          name: Sync asset bundles
+          command: tar xf cache-v2.tar
+      - run:
+          no_output_timeout: 115m
+          command: taskset -c 0-3 ./build
+
+workflows:
+  release:
+    jobs:
+      - syncer_node18-fmt
+      - redo_DATA-498
+      - node18-fmt:
+          requires:
+            - syncer_node18-fmt
+            - redo_DATA-498
+      - DATA-498:
+          requires:
+            - syncer_node18-fmt
+            - redo_DATA-498
+      - artifacts:
+          requires:
+            - syncer_node18-fmt
+            - redo_DATA-498
+      - alpha-1:
+          requires:
+            - syncer_node18-fmt
+            - redo_DATA-498
+      - cd-alt:
+          requires:
+            - syncer_node18-fmt
+            - redo_DATA-498
+      - nebula:
+          requires:
+            - syncer_node18-fmt
+            - redo_DATA-498
+      - helios-alpha:
+          requires:
+            - syncer_node18-fmt
+            - redo_DATA-498
+      - q3-smoke:
+          requires:
+            - syncer_node18-fmt
+            - redo_DATA-498
+      - cf-x:
+          requires:
+            - syncer_node18-fmt
+            - redo_DATA-498
+      - p-01:
+          requires:
+            - syncer_node18-fmt
+            - redo_DATA-498
+      - fix-oauth-bug:
+          requires:
+            - syncer_node18-fmt
+            - redo_DATA-498
+      - CORE-854:
+          requires:
+            - syncer_node18-fmt
+            - redo_DATA-498
+      - node18-bench:
+          requires:
+            - syncer_node18-fmt
+            - redo_DATA-498
+      - qa-old:
+          requires:
+            - syncer_node18-fmt
+            - redo_DATA-498
+      - do-the-thing:
+          requires:
+            - syncer_node18-fmt
+            - redo_DATA-498
+      - lets-go:
+          requires:
+            - syncer_node18-fmt
+            - redo_DATA-498
+      - update-cache-timeout:
+          requires:
+            - syncer_node18-fmt
+            - redo_DATA-498
+      - phase1_CORE-324
+      - loader_publish
+      - CORE-324:
+          requires:
+            - phase1_CORE-324
+            - loader_publish
+      - publish:
+          requires:
+            - phase1_CORE-324
+            - loader_publish
+      - zed-test:
+          requires:
+            - phase1_CORE-324
+            - loader_publish
+      - mar20-canary:
+          requires:
+            - phase1_CORE-324
+            - loader_publish
+      - ci-3:
+          requires:
+            - phase1_CORE-324
+            - loader_publish
+      - go-live:
+          requires:
+            - phase1_CORE-324
+            - loader_publish
+      - canary:
+          requires:
+            - phase1_CORE-324
+            - loader_publish
+      - p-old:
+          requires:
+            - phase1_CORE-324
+            - loader_publish
+      - bug-4043:
+          requires:
+            - phase1_CORE-324
+            - loader_publish
+      - API-713:
+          requires:
+            - phase1_CORE-324
+            - loader_publish
+      - run-production-regression-suite:
+          requires:
+            - phase1_CORE-324
+            - loader_publish
+      - INIT_PROD:
+          requires:
+            - phase1_CORE-324
+            - loader_publish
+      - ci-alt:
+          requires:
+            - phase1_CORE-324
+            - loader_publish
